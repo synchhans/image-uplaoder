@@ -1,6 +1,6 @@
 // src/app/page.tsx
 
-"use client"; // Ini WAJIB karena kita menggunakan state dan event handler
+"use client";
 
 import { useState, FormEvent, ChangeEvent } from "react";
 
@@ -16,9 +16,20 @@ export default function Home() {
   const [status, setStatus] = useState<UploadStatus>("initial");
   const [result, setResult] = useState<UploadResult | null>(null);
 
+  // Fungsi untuk mengekstrak nama file dari URL R2
+  const getFilenameFromUrl = (url: string) => {
+    try {
+      return new URL(url).pathname.substring(1); // Hapus '/' di awal
+    } catch (e) {
+      return "";
+    }
+  };
+
   const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
       setFile(e.target.files[0]);
+      setStatus("initial");
+      setResult(null);
     }
   };
 
@@ -40,9 +51,7 @@ export default function Home() {
         method: "POST",
         body: formData,
       });
-
       const data: UploadResult = await response.json();
-
       if (response.ok) {
         setStatus("success");
         setResult(data);
@@ -51,6 +60,7 @@ export default function Home() {
         setResult(data);
       }
     } catch (_error) {
+      // Perbaikan di sini
       setStatus("error");
       setResult({ message: "An unexpected error occurred." });
     }
@@ -65,10 +75,13 @@ export default function Home() {
         padding: "20px",
       }}
     >
-      <h1>Upload File ke Cloudflare R2 (Next.js App Router)</h1>
+      <h1>Image Proxy dengan Vercel & R2</h1>
+      <p style={{ color: "#666" }}>
+        URL gambar akan disajikan melalui web ini, bukan dari CDN R2 langsung.
+      </p>
       <form onSubmit={handleSubmit}>
         <div>
-          <input type="file" onChange={handleFileChange} />
+          <input type="file" onChange={handleFileChange} accept="image/*" />
         </div>
         <button
           type="submit"
@@ -83,19 +96,40 @@ export default function Home() {
         <div
           style={{
             marginTop: "20px",
-            padding: "10px",
+            padding: "20px",
             border: `1px solid ${status === "success" ? "green" : "red"}`,
             borderRadius: "5px",
           }}
         >
           <p>{result.message}</p>
+
           {status === "success" && result.url && (
-            <p>
-              File URL:{" "}
-              <a href={result.url} target="_blank" rel="noopener noreferrer">
-                {result.url}
-              </a>
-            </p>
+            <div>
+              {/* Buat URL proxy kita */}
+              <p style={{ fontSize: "14px", color: "#555" }}>
+                Image URL (Masked):
+                <a
+                  href={`/cdn/${getFilenameFromUrl(result.url)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  {`/cdn/${getFilenameFromUrl(result.url)}`}
+                </a>
+              </p>
+
+              {/* Gunakan URL proxy di tag <img> */}
+              <img
+                src={`/cdn/${getFilenameFromUrl(result.url)}`}
+                alt="Uploaded Preview"
+                style={{
+                  marginTop: "15px",
+                  maxWidth: "100%",
+                  maxHeight: "400px",
+                  border: "1px solid #ccc",
+                  borderRadius: "5px",
+                }}
+              />
+            </div>
           )}
         </div>
       )}
